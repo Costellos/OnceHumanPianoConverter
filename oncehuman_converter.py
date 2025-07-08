@@ -1,6 +1,11 @@
 import mido
 from mido import MidiFile
 import os
+import sys
+
+STRICT_MODE = '--strict' in sys.argv
+CLIP_MODE = '--clip' in sys.argv
+
 
 note_map = {
     0: 'C', 1: 'C#', 2: 'D', 3: 'D#', 4: 'E',
@@ -40,6 +45,12 @@ def convert_note(note_str):
     if not key:
         return f"[Unknown:{note_str}]"
 
+    if octave < 3 or octave > 5:
+        if STRICT_MODE:
+            return f"[Rejected: Octave {octave}]"
+        elif CLIP_MODE:
+            octave = max(3, min(5, octave))  # clip to 3–5
+
     modifier = ''
     if octave == 3:
         modifier = 'Ctrl + '
@@ -48,12 +59,16 @@ def convert_note(note_str):
     elif octave != 4:
         return f"[Octave:{octave}]"
 
-    return f"{modifier}{key} ({duration} beat{'s' if duration != 1.0 else ''})"
+    if duration == 1.0:
+        return f"{modifier}{key}"
+    else:
+        return f"{modifier}{key} ({duration} beat{'s' if duration != 1.0 else ''})"
+
 
 def convert_midi_file(filepath):
     midi = MidiFile(filepath)
     ticks_per_beat = midi.ticks_per_beat
-    tempo = 500000  # default 120 BPM
+    tempo = 50000 # default 120 BPM
     abs_time = 0
     notes = []
 
